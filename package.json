@@ -1,8 +1,16 @@
 {
   "name": "@dezignee/react",
-  "version": "0.1.0",
-  "description": "React component that embeds the Dezignee email editor in your product",
+  "version": "0.1.2",
+  "description": "React component that embeds the Dezignee document editor in your product",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Dezignee/dezignee-react.git"
+  },
+  "homepage": "https://github.com/Dezignee/dezignee-react#readme",
+  "bugs": {
+    "url": "https://github.com/Dezignee/dezignee-react/issues"
+  },
   "type": "module",
   "sideEffects": false,
   "main": "./dist/index.cjs",
@@ -43,13 +51,5 @@
     "typescript": "^5.2.2",
     "vite": "^5.0.0",
     "vite-plugin-dts": "^3.6.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Dezignee/dezignee-react.git"
-  },
-  "homepage": "https://github.com/Dezignee/dezignee-react#readme",
-  "bugs": {
-    "url": "https://github.com/Dezignee/dezignee-react/issues"
   }
 }

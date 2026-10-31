@@ -1,6 +1,6 @@
 # @dezignee/react
 
-React component that embeds the Dezignee email editor in your product. It wraps the `dezignee-plugin` SDK: it mounts the editor, tears it down when your component unmounts, and keeps the editor in step with your props.
+React component that embeds the Dezignee document editor in your product. It wraps the `dezignee-plugin` SDK: it mounts the editor, tears it down when your component unmounts, and keeps the editor in step with your props.
 
 ```sh
 npm install @dezignee/react
@@ -16,7 +16,7 @@ npm 7 and later install the `dezignee-plugin` peer dependency for you. React 18 
 import { useEffect, useRef, useState } from 'react';
 import { DezigneeEditor, type DezigneeEditorHandle } from '@dezignee/react';
 
-export function EmailEditor() {
+export function DocumentEditor() {
   const editor = useRef<DezigneeEditorHandle>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
 
