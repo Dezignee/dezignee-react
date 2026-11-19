@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { DezigneeEditor, type DezigneeEditorHandle } from '../../src';
+import { DezigneeBuilder, type DezigneeBuilderHandle } from '../../src';
 
 export function App() {
-  const editor = useRef<DezigneeEditorHandle>(null);
+  const editor = useRef<DezigneeBuilderHandle>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
 
   useEffect(() => {
@@ -15,7 +15,7 @@ export function App() {
   return (
     <>
       <button onClick={() => editor.current?.editor?.exportHTML()}>Export</button>
-      <DezigneeEditor ref={editor} sessionToken={sessionToken} style={{ height: 600 }} />
+      <DezigneeBuilder ref={editor} sessionToken={sessionToken} style={{ height: 600 }} />
     </>
   );
 }

@@ -1,16 +1,20 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { init, type DocumentKind, type DocumentsOptions, type EditorTheme, type InitOptions, type NavigationStyle } from 'dezignee-plugin';
-import type { DezigneeEditorHandle, DezigneeEditorInstance, DezigneeEditorProps } from './types';
+import type { DezigneeBuilderHandle, DezigneeBuilderInstance, DezigneeBuilderProps } from './types';
 
 let nextContainerId = 0;
 
 const noop = () => {};
 
-function shallowEqual(a: EditorTheme | undefined, b: EditorTheme | undefined): boolean {
+/** Whether two themes hold the same settings. The theme is nested, so the compare goes all the way down: a changed colour is sent, a new object with the same values is not. */
+function sameTheme(a: unknown, b: unknown): boolean {
   if (a === b) return true;
-  if (!a || !b) return false;
-  const keys = Object.keys(a);
-  return keys.length === Object.keys(b).length && keys.every((key) => key in b && a[key] === b[key]);
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const left = a as Record<string, unknown>;
+  const right = b as Record<string, unknown>;
+  const keys = Object.keys(left);
+  return keys.length === Object.keys(right).length && keys.every((key) => key in right && sameTheme(left[key], right[key]));
 }
 
 type Navigation = Partial<Record<DocumentKind, NavigationStyle>>;
@@ -27,13 +31,13 @@ function withNavigation(documents: DocumentsOptions | undefined, navigation: Nav
   return merged as DocumentsOptions;
 }
 
-export const DezigneeEditor = forwardRef<DezigneeEditorHandle, DezigneeEditorProps>(
-  function DezigneeEditor(props, ref) {
+export const DezigneeBuilder = forwardRef<DezigneeBuilderHandle, DezigneeBuilderProps>(
+  function DezigneeBuilder(props, ref) {
     const { id, className, style } = props;
     const containerRef = useRef<HTMLDivElement>(null);
-    const editorRef = useRef<DezigneeEditorInstance | null>(null);
+    const editorRef = useRef<DezigneeBuilderInstance | null>(null);
     const latest = useRef(props);
-    const applied = useRef<Pick<DezigneeEditorProps, 'theme' | 'themeMode'>>({});
+    const applied = useRef<EditorTheme | undefined>(undefined);
     const appliedNavigation = useRef<Navigation>({});
     const editorReady = useRef(false);
     const settled = useRef<Promise<unknown>>(Promise.resolve());
@@ -41,15 +45,11 @@ export const DezigneeEditor = forwardRef<DezigneeEditorHandle, DezigneeEditorPro
     const syncTheme = () => {
       const editor = editorRef.current;
       if (!editor || !editorReady.current) return;
-      const { theme, themeMode } = latest.current;
-      const themeChanged = !shallowEqual(theme, applied.current.theme);
-      const modeChanged = themeMode !== applied.current.themeMode;
-      if (!themeChanged && !modeChanged) return;
-      applied.current = { theme, themeMode };
-      const nextTheme = themeChanged ? theme : undefined;
-      const nextMode = modeChanged ? themeMode : undefined;
-      if (nextTheme === undefined && nextMode === undefined) return;
-      editor.setTheme(nextTheme, nextMode);
+      const { theme } = latest.current;
+      if (sameTheme(theme, applied.current)) return;
+      applied.current = theme;
+      // An empty theme is sent too: it clears what the page had set.
+      editor.setTheme(theme ?? {});
     };
 
     const syncNavigation = () => {
@@ -75,14 +75,15 @@ export const DezigneeEditor = forwardRef<DezigneeEditorHandle, DezigneeEditorPro
     const hasRefreshToken = props.refreshToken !== undefined;
     const hasAgentEdit = props.onAgentEdit !== undefined;
     const hasPurchase = props.onPurchaseCredits !== undefined;
+    const hasUpdateHandler = props.onUpdateAvailable !== undefined;
     const assetsShape = props.assets
       ? `${props.assets.deleteAsset ? 'd' : '-'}${props.assets.listAssets ? 'l' : '-'}`
       : '';
-    const initOnlyKey = JSON.stringify([props.newCollection, props.autoSave, props.controls, props.addData, props.toast, props.author, props.sidebar, props.fonts, props.documents, props.displayConditions, props.brandColors]);
+    const initOnlyKey = JSON.stringify([props.newCollection, props.autoSave, props.controls, props.data?.show, props.data?.links, props.toast, props.strings, props.author, props.sidebar, props.fonts, props.documents, props.displayConditions, props.direction]);
 
     useEffect(() => {
       let cancelled = false;
-      let created: DezigneeEditorInstance | null = null;
+      let created: DezigneeBuilderInstance | null = null;
 
       const timer = setTimeout(() => {
         void (async () => {
@@ -104,12 +105,14 @@ export const DezigneeEditor = forwardRef<DezigneeEditorHandle, DezigneeEditorPro
               syncNavigation();
               latest.current.onReady?.();
             },
+            onCollectionCreated: (collectionId) => latest.current.onCollectionCreated?.(collectionId),
             onSessionRefreshFailed: () => latest.current.onSessionRefreshFailed?.(),
             onAgentEdit: hasAgentEdit ? (event) => latest.current.onAgentEdit?.(event) : undefined,
             onSelectionChange: (selection) => latest.current.onSelectionChange?.(selection),
             onSaveStateChange: (state) => latest.current.onSaveStateChange?.(state),
             onChange: (event) => latest.current.onChange?.(event),
             onRateLimited: () => latest.current.onRateLimited?.(),
+            onUpdateAvailable: hasUpdateHandler ? () => latest.current.onUpdateAvailable?.() : undefined,
             onCreditsExhausted: (credits) => latest.current.onCreditsExhausted?.(credits),
             onPurchaseCredits: hasPurchase ? (request) => latest.current.onPurchaseCredits?.(request) : undefined,
             editorUrl: o.editorUrl,
@@ -133,27 +136,28 @@ export const DezigneeEditor = forwardRef<DezigneeEditorHandle, DezigneeEditorPro
                 : undefined,
             },
             theme: o.theme,
-            themeMode: o.themeMode,
             documents: withNavigation(o.documents, o.navigation),
             autoSave: o.autoSave,
             controls: o.controls,
-            addData: o.addData,
+            data: o.data,
             toast: o.toast,
+            strings: o.strings,
             author: o.author,
             sidebar: o.sidebar,
             fonts: o.fonts,
             displayConditions: o.displayConditions,
-            brandColors: o.brandColors,
-            mergeTags: o.mergeTags,
-            dataSources: o.dataSources,
+            variables: o.variables,
+            brand: o.brand,
+            direction: o.direction,
+            initialView: o.initialView,
           };
-          applied.current = { theme: o.theme, themeMode: o.themeMode };
+          applied.current = o.theme;
           appliedNavigation.current = { ...o.navigation };
           editorReady.current = false;
 
           const pending = init(options);
           settled.current = pending.then(noop, noop);
-          let instance: DezigneeEditorInstance;
+          let instance: DezigneeBuilderInstance;
           try {
             instance = await pending;
           } catch (error) {
@@ -198,6 +202,7 @@ export const DezigneeEditor = forwardRef<DezigneeEditorHandle, DezigneeEditorPro
       hasRefreshToken,
       hasAgentEdit,
       hasPurchase,
+      hasUpdateHandler,
       assetsShape,
       initOnlyKey,
     ]);
